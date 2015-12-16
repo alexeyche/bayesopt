@@ -161,7 +161,20 @@ namespace bayesopt
         state.saveToFile(mParameters.save_filename);
       }
   }
-  
+  void BayesOptBase::initWithPoints(const matrixd& x, const vectord& y) {
+    if(!mModel) {
+      mModel.reset(PosteriorModel::create(mDims,mParameters,mEngine));
+    }
+    mModel->setSamples(x, y);
+ 
+    if(mParameters.verbose_level > 0)
+      {
+        mModel->plotDataset(logDEBUG);
+      }
+    
+    mModel->updateHyperParameters();
+    mModel->fitSurrogateModel();
+  }
 
   void BayesOptBase::initializeOptimization()
   {
@@ -194,15 +207,8 @@ namespace bayesopt
       }
     
     // Put samples into model
-    mModel->setSamples(xPoints,yPoints);
- 
-    if(mParameters.verbose_level > 0)
-      {
-        mModel->plotDataset(logDEBUG);
-      }
-    
-    mModel->updateHyperParameters();
-    mModel->fitSurrogateModel();
+    initWithPoints(xPoints, yPoints);
+
     mCurrentIter = 0;
 
     mCounterStuck = 0;
@@ -257,16 +263,7 @@ namespace bayesopt
       }
     
     // Set loaded and generated samples
-    mModel->setSamples(xPoints,yPoints);
-        
-    if(mParameters.verbose_level > 0)
-    {
-        mModel->plotDataset(logDEBUG);
-    }
-    
-    // Calculate the posterior model
-    mModel->updateHyperParameters();
-    mModel->fitSurrogateModel();
+    initWithPoints(xPoints, yPoints);
     
     mCurrentIter = state.mCurrentIter;
     mCounterStuck = state.mCounterStuck;

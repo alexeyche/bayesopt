@@ -150,7 +150,7 @@ namespace bayesopt {
     double getValueAtMinimum();
     size_t getCurrentIter();
     double evaluateCriteria(const vectord& query);
-
+    void initWithPoints(const matrixd& x, const vectord& y);
   protected:
     /** Get optimal point in the inner space (e.g.: [0-1] hypercube) */
     vectord getPointAtMinimum();

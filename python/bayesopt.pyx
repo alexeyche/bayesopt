@@ -24,6 +24,8 @@ import numpy as np
 cimport numpy as np
 #from python_ref cimport Py_INCREF, Py_DECREF
 from cpython cimport Py_INCREF, Py_DECREF
+cimport cpython
+import ctypes
 
 # Cython > 0.20
 #from libc.math cimport HUGE_VAL
@@ -119,6 +121,16 @@ cdef extern from "bayesopt/bayesopt.h":
                                         double *minf, bopt_params parameters)
 
 ###########################################################################
+cdef extern from "bayesopt/bayesoptwrap.hpp":
+    cdef cppclass ContinuousModelWrap:
+        ContinuousModelWrap(size_t, bopt_params) except +
+        void set_eval_funct(eval_func)
+        void save_other_data(void*)
+        void setBoundingBox(const double*, const double*)
+        void optimize(double*)
+        size_t getDimSize()
+        void initWithPoints(const double*, const double*, size_t)
+###########################################################################
 cdef bopt_params dict2structparams(dict dparams):
 
     params = initialize_parameters_to_default()
@@ -194,6 +206,17 @@ cdef bopt_params dict2structparams(dict dparams):
 
     return params
 
+cdef inline object fromvoidptr(void *a): 
+     cdef cpython.PyObject *o 
+     o = <cpython.PyObject *> a 
+     cpython.Py_XINCREF(o) 
+     print o.ob_refcnt
+     return <object> o 
+
+cdef inline void* tovoidptr(object o): 
+     cpython.Py_INCREF(o)
+     return <void*> o 
+
 cdef double callback(unsigned int n, const_double_ptr x,
                      double *gradient, void *func_data):
     try:
@@ -201,8 +224,10 @@ cdef double callback(unsigned int n, const_double_ptr x,
 
         for i in range(0,n):
             x_np[i] = <double>x[i]
-
-        result = (<object>func_data)(x_np)
+        
+        method = fromvoidptr(func_data)
+        result = method(x_np)
+        Py_DECREF(method)
         return result
     except:
         return HUGE_VAL
@@ -238,13 +263,9 @@ def optimize(f, int nDim, np.ndarray[np.double_t] np_lb,
     ub = np.ascontiguousarray(np_ub,dtype=np.double)
     x  = np.ascontiguousarray(np_x,dtype=np.double)
 
-    Py_INCREF(f)
-
-    error_code = bayes_optimization(nDim, callback, <void *> f,
+    error_code = bayes_optimization(nDim, callback, tovoidptr(f),
                                     &lb[0], &ub[0], &x[0], minf, params)
 
-    
-    Py_DECREF(f)
 
     raise_problem(error_code)
     
@@ -268,13 +289,9 @@ def optimize_discrete(f, np.ndarray[np.double_t,ndim=2] np_valid_x,
     x  = np.ascontiguousarray(np_x,dtype=np.double)
     valid_x = np.ascontiguousarray(np_valid_x,dtype=np.double)
 
-    Py_INCREF(f)
-
-    error_code = bayes_optimization_disc(nDim, callback, <void *> f,
+    error_code = bayes_optimization_disc(nDim, callback, tovoidptr(f),
                                          &valid_x[0,0], np_valid_x.shape[0],
                                          &x[0], minf, params)
-
-    Py_DECREF(f)
 
     raise_problem(error_code)
     
@@ -297,15 +314,63 @@ def optimize_categorical(f, np.ndarray[np.int_t,ndim=1] np_categories,
     x  = np.ascontiguousarray(np_x,dtype=np.double)
     categories = np.ascontiguousarray(np_categories,dtype=np.int)
 
-    Py_INCREF(f)
-
-    error_code = bayes_optimization_categorical(nDim, callback, <void *> f,
+    error_code = bayes_optimization_categorical(nDim, callback, tovoidptr(f),
                                                 <int *>&categories[0], &x[0],
                                                 minf, params)
-
-    Py_DECREF(f)
 
     raise_problem(error_code)
     
     min_value = minf[0]
     return min_value,np_x,error_code
+
+
+cdef class ContinuousModel:
+    cdef ContinuousModelWrap* obj
+
+    def __init__(self, int nDim, dict dparams):
+        cdef bopt_params params = dict2structparams(dparams)
+        self.obj = new ContinuousModelWrap(nDim, params)
+        if self.obj == NULL:
+            raise MemoryError("Can't allocate memory for class instance")
+    
+        self.obj.set_eval_funct(callback)
+        self.obj.save_other_data(tovoidptr(self.evaluateSample))
+    
+    def evaluateSample(self, x_in):
+        raise NotImplementedError("Please Implement this method")
+
+    def setBoundingBox(self, np.ndarray[np.double_t] lb, np.ndarray[np.double_t] ub):
+        self.obj.setBoundingBox(&lb[0], &ub[0])
+
+    def optimize(self):        
+        cdef np.ndarray np_res = np.zeros([self.obj.getDimSize()], dtype=np.double)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] x = np.ascontiguousarray(np_res,dtype=np.double)
+        self.obj.optimize(&x[0])
+        return np_res
+
+    def initWithPoints(self, np.ndarray[np.double_t, ndim=2] x, np.ndarray[np.double_t, ndim=1] y):
+        nsamples = x.shape[0]
+        try:
+            assert nsamples == y.shape[0]
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nGot different lengths for x and y"
+            e.args = (message, )
+            raise
+        try:
+            assert self.obj.getDimSize() == x.shape[1]
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nGot x with different dimension size than problem"
+            e.args = (message, )
+            raise
+
+        cdef np.ndarray[double, ndim=2, mode="c"] xC = np.ascontiguousarray(x, dtype=ctypes.c_double)
+        cdef np.ndarray[double, ndim=1, mode="c"] yC = np.ascontiguousarray(y, dtype=ctypes.c_double)
+        
+        self.obj.initWithPoints(&xC[0, 0], &yC[0], nsamples)
+
+    def __del__(self):
+        del self.obj
+
+

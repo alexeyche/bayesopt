@@ -50,7 +50,7 @@ params['n_init_samples'] = 2
 
 print "Callback implementation"
 
-n = 5                     # n dimensions
+n = 10                     # n dimensions
 lb = np.zeros((n,))
 ub = np.ones((n,))
 

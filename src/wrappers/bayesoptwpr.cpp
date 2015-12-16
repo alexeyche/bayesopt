@@ -22,6 +22,7 @@
 
 #include "bayesopt/bayesopt.h"
 #include "bayesopt/bayesopt.hpp"      
+#include "bayesopt/bayesoptwrap.hpp"      
 
 #include "log.hpp"
 #include "ublas_extra.hpp"
@@ -32,36 +33,96 @@ static const int BAYESOPT_INVALID_ARGS = -2;
 static const int BAYESOPT_OUT_OF_MEMORY = -3;
 static const int BAYESOPT_RUNTIME_ERROR = -4;
 
+// C++ wrapper
+
+  ContinuousModelWrap::ContinuousModelWrap(size_t dim, bopt_params params):
+    ContinuousModel(dim,params)  {}; 
+
+  double ContinuousModelWrap::evaluateSample( const vectord &Xi ) 
+  {
+    return mF(mDims,&Xi[0],NULL,mOtherData);
+  };
+  void ContinuousModelWrap::set_eval_funct(eval_func f)
+  {  mF = f; }
+
+
+  void ContinuousModelWrap::save_other_data(void* other_data)
+  {  mOtherData = other_data; }
+
+  void ContinuousModelWrap::setBoundingBox(const double* lb, const double* ub) {
+    vectord lbV(mDims);
+    vectord ubV(mDims);
+    
+    for(size_t di=0; di<mDims; ++di) {
+      lbV[di] = lb[di];
+      ubV[di] = ub[di];
+    }
+    ContinuousModel::setBoundingBox(lbV, ubV);
+  }
+  const size_t& ContinuousModelWrap::getDimSize() const {
+    return mDims;
+  }
+
+  void ContinuousModelWrap::optimize(double* res) {
+    vectord resV(mDims);
+    ContinuousModel::optimize(resV);
+    for(size_t di=0; di<mDims; ++di) {
+      res[di] = resV[di];
+    }
+  }
+
+  void ContinuousModelWrap::initWithPoints(const double *x, const double *y, size_t nsamples) {
+    matrixd xV(nsamples, mDims);
+    vectord yV(nsamples);
+
+    for(size_t i=0; i<nsamples; ++i) {
+      yV[i] = y[i];
+      for(size_t j=0; j<mDims; ++j) {
+        xV(i, j) = x[i*mDims + j];
+      }
+    }
+
+    ContinuousModel::initWithPoints(xV, yV);
+  }
+
+  class CContinuousModel: public bayesopt::ContinuousModel 
+  {
+   public:
+
+    CContinuousModel(size_t dim, bopt_params params);
+
+    virtual ~CContinuousModel(){};
+
+    double evaluateSample( const vectord &Xi );
+
+    void set_eval_funct(eval_func f);
+
+
+    void save_other_data(void* other_data);
+   
+  protected:
+    void* mOtherData;
+    eval_func mF;
+  };
+
+
 /**
  * \brief Version of ContinuousModel for the C wrapper
  */
-class CContinuousModel: public bayesopt::ContinuousModel 
-{
- public:
-
-  CContinuousModel(size_t dim, bopt_params params):
+  CContinuousModel::CContinuousModel(size_t dim, bopt_params params):
     ContinuousModel(dim,params)  {}; 
 
-  virtual ~CContinuousModel(){};
-
-  double evaluateSample( const vectord &Xi ) 
+  double CContinuousModel::evaluateSample( const vectord &Xi ) 
   {
     int n = static_cast<int>(Xi.size());
     return  mF(n,&Xi[0],NULL,mOtherData);
   };
-
-  void set_eval_funct(eval_func f)
+  void CContinuousModel::set_eval_funct(eval_func f)
   {  mF = f; }
 
 
-  void save_other_data(void* other_data)
+  void CContinuousModel::save_other_data(void* other_data)
   {  mOtherData = other_data; }
- 
-protected:
-  void* mOtherData;
-  eval_func mF;
-};
-
 /**
  * \brief Version of DiscreteModel for the C wrapper
  */
@@ -113,6 +174,7 @@ int bayes_optimization(int nDim, eval_func f, void* f_data,
       optimizer.setBoundingBox(lowerBound,upperBound);
 
       optimizer.optimize(result);
+
       std::copy(result.begin(), result.end(), x);
 
       *minf = optimizer.getValueAtMinimum();

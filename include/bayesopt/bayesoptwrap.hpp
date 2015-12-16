@@ -23,7 +23,9 @@
    
    	void setBoundingBox(const double* lb, const double* ub);
 
-   	const size_t& getDimSize() const;
+    void initWithPoints(const double *x, const double *y, size_t nsamples);
+   	
+    const size_t& getDimSize() const;
 
    	void optimize(double* res);
   protected:
