@@ -121,6 +121,10 @@ cdef extern from "bayesopt/bayesopt.h":
                                         double *minf, bopt_params parameters)
 
 ###########################################################################
+cdef extern from "bayesopt/bayesoptwrap.hpp"
+    cdef cppclass GaussianDistributionWrap:
+        GaussianDistributionWrap
+
 cdef extern from "bayesopt/bayesoptwrap.hpp":
     cdef cppclass ContinuousModelWrap:
         ContinuousModelWrap(size_t, bopt_params) except +
@@ -130,6 +134,8 @@ cdef extern from "bayesopt/bayesoptwrap.hpp":
         void optimize(double*)
         size_t getDimSize()
         void initWithPoints(const double*, const double*, size_t)
+        cdef GaussianDistributionWrap* getPrediction(const double*)
+
 ###########################################################################
 cdef bopt_params dict2structparams(dict dparams):
 

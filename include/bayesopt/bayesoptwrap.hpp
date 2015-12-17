@@ -5,6 +5,8 @@
 #include "bayesopt.h"
 #include "bayesopt/bayesopt.hpp"
 
+#include "gauss_distribution.hpp"
+
 
   class ContinuousModelWrap: public bayesopt::ContinuousModel 
   {
@@ -33,6 +35,11 @@
     eval_func mF;
   };
 
+
+  class GaussianDistributionWrap: public GaussianDistribution {
+  public:
+    GaussianDistributionWrap
+  };
 
 
 #endif
