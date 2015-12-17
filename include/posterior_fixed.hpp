@@ -1,17 +1,17 @@
 /**  \file posterior_fixed.hpp \brief Posterior model based on fixed kernel parameters */
 /*
 -------------------------------------------------------------------------
-   This file is part of BayesOpt, an efficient C++ library for 
+   This file is part of BayesOpt, an efficient C++ library for
    Bayesian optimization.
 
    Copyright (C) 2011-2015 Ruben Martinez-Cantin <rmcantin@unizar.es>
- 
-   BayesOpt is free software: you can redistribute it and/or modify it 
+
+   BayesOpt is free software: you can redistribute it and/or modify it
    under the terms of the GNU Affero General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
-   BayesOpt is distributed in the hope that it will be useful, but 
+   BayesOpt is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Affero General Public License for more details.
@@ -39,19 +39,19 @@ namespace bayesopt {
   /*@{*/
 
  /**
-   * \brief Bayesian optimization using different non-parametric 
-   * processes as distributions over surrogate functions. 
+   * \brief Bayesian optimization using different non-parametric
+   * processes as distributions over surrogate functions.
    */
   class PosteriorFixed: public PosteriorModel
   {
   public:
-    /** 
+    /**
      * Constructor
      * @param params set of parameters (see parameters.hpp)
      */
     PosteriorFixed(size_t dim, Parameters params, randEngine& eng);
 
-    /** 
+    /**
      * Default destructor
      */
     virtual ~PosteriorFixed();
@@ -73,7 +73,7 @@ namespace bayesopt {
   private:
     PosteriorFixed();
 
-    void setSurrogateModel(randEngine& eng);    
+    void setSurrogateModel(randEngine& eng);
     void setCriteria(randEngine& eng);
 
   private:  // Members
@@ -100,14 +100,14 @@ namespace bayesopt {
 
   inline bool PosteriorFixed::criteriaRequiresComparison()
   {return mCrit->requireComparison(); };
-    
+
   inline void PosteriorFixed::setFirstCriterium()
   { mCrit->initialCriteria(); };
 
   inline bool PosteriorFixed::setNextCriterium(const vectord& prevResult)
-  { 
+  {
     mCrit->pushResult(prevResult);
-    return mCrit->rotateCriteria(); 
+    return mCrit->rotateCriteria();
   };
 
   inline std::string PosteriorFixed::getBestCriteria(vectord& best)

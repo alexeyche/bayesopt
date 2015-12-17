@@ -1,18 +1,18 @@
-/** \file gaussian_process.hpp 
+/** \file gaussian_process.hpp
     \brief Standard zero mean gaussian process with noisy observations */
 /*
 -------------------------------------------------------------------------
-   This file is part of BayesOpt, an efficient C++ library for 
+   This file is part of BayesOpt, an efficient C++ library for
    Bayesian optimization.
 
    Copyright (C) 2011-2015 Ruben Martinez-Cantin <rmcantin@unizar.es>
- 
-   BayesOpt is free software: you can redistribute it and/or modify it 
+
+   BayesOpt is free software: you can redistribute it and/or modify it
    under the terms of the GNU Affero General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
-   BayesOpt is distributed in the hope that it will be useful, but 
+   BayesOpt is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Affero General Public License for more details.
@@ -31,7 +31,7 @@
 
 namespace bayesopt
 {
-  
+
   /** \addtogroup NonParametricProcesses */
   /**@{*/
 
@@ -41,32 +41,32 @@ namespace bayesopt
   class GaussianProcess: public ConditionalBayesProcess
   {
   public:
-    GaussianProcess(size_t dim, Parameters params, const Dataset& data, 
+    GaussianProcess(size_t dim, Parameters params, const Dataset& data,
 		    MeanModel& mean, randEngine& eng);
     virtual ~GaussianProcess();
 
-    /** 
+    /**
      * \brief Function that returns the prediction of the GP for a query point
      * in the hypercube [0,1].
-     * 
+     *
      * @param query in the hypercube [0,1] to evaluate the Gaussian process
      * @return pointer to the probability distribution.
-     */	
+     */
     ProbabilityDistribution* prediction(const vectord &query);
 
   private:
 
-    /** 
+    /**
      * \brief Computes the negative log likelihood of the data for all
      * the parameters.
      * @return value negative log likelihood
      */
     double negativeTotalLogLikelihood();
 
-    /** 
+    /**
      * \brief Computes the negative log likelihood of the data.
-     * 
-     * \f[ \log p(y|x,\theta,f) \propto  y^T (K+\sigma I)^{-1} y + 
+     *
+     * \f[ \log p(y|x,\theta,f) \propto  y^T (K+\sigma I)^{-1} y +
      *                             \log|K+\sigma I|
      * \f]
      *
@@ -87,6 +87,6 @@ namespace bayesopt
   /**@}*/
 
 } //namespace bayesopt
- 
+
 
 #endif

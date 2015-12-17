@@ -1,10 +1,10 @@
 /*
 -----------------------------------------------------------------------------
-   This file is part of BayesOptimization, an efficient C++ library for 
+   This file is part of BayesOptimization, an efficient C++ library for
    Bayesian optimization.
 
    Copyright (C) 2011-2015 Ruben Martinez-Cantin <rmcantin@unizar.es>
- 
+
    BayesOptimization is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
@@ -21,71 +21,21 @@
 */
 
 #include "bayesopt/bayesopt.h"
-#include "bayesopt/bayesopt.hpp"      
-#include "bayesopt/bayesoptwrap.hpp"      
+#include "bayesopt/bayesopt.hpp"
+#include "bayesopt/bayesoptwrap.hpp"
 
 #include "log.hpp"
 #include "ublas_extra.hpp"
 #include "specialtypes.hpp"
+#include "randgen.hpp"
 
 static const int BAYESOPT_FAILURE = -1; /* generic failure code */
 static const int BAYESOPT_INVALID_ARGS = -2;
 static const int BAYESOPT_OUT_OF_MEMORY = -3;
 static const int BAYESOPT_RUNTIME_ERROR = -4;
 
-// C++ wrapper
 
-  ContinuousModelWrap::ContinuousModelWrap(size_t dim, bopt_params params):
-    ContinuousModel(dim,params)  {}; 
-
-  double ContinuousModelWrap::evaluateSample( const vectord &Xi ) 
-  {
-    return mF(mDims,&Xi[0],NULL,mOtherData);
-  };
-  void ContinuousModelWrap::set_eval_funct(eval_func f)
-  {  mF = f; }
-
-
-  void ContinuousModelWrap::save_other_data(void* other_data)
-  {  mOtherData = other_data; }
-
-  void ContinuousModelWrap::setBoundingBox(const double* lb, const double* ub) {
-    vectord lbV(mDims);
-    vectord ubV(mDims);
-    
-    for(size_t di=0; di<mDims; ++di) {
-      lbV[di] = lb[di];
-      ubV[di] = ub[di];
-    }
-    ContinuousModel::setBoundingBox(lbV, ubV);
-  }
-  const size_t& ContinuousModelWrap::getDimSize() const {
-    return mDims;
-  }
-
-  void ContinuousModelWrap::optimize(double* res) {
-    vectord resV(mDims);
-    ContinuousModel::optimize(resV);
-    for(size_t di=0; di<mDims; ++di) {
-      res[di] = resV[di];
-    }
-  }
-
-  void ContinuousModelWrap::initWithPoints(const double *x, const double *y, size_t nsamples) {
-    matrixd xV(nsamples, mDims);
-    vectord yV(nsamples);
-
-    for(size_t i=0; i<nsamples; ++i) {
-      yV[i] = y[i];
-      for(size_t j=0; j<mDims; ++j) {
-        xV(i, j) = x[i*mDims + j];
-      }
-    }
-
-    ContinuousModel::initWithPoints(xV, yV);
-  }
-
-  class CContinuousModel: public bayesopt::ContinuousModel 
+  class CContinuousModel: public bayesopt::ContinuousModel
   {
    public:
 
@@ -99,20 +49,21 @@ static const int BAYESOPT_RUNTIME_ERROR = -4;
 
 
     void save_other_data(void* other_data);
-   
+
   protected:
     void* mOtherData;
     eval_func mF;
   };
 
 
+
 /**
  * \brief Version of ContinuousModel for the C wrapper
  */
   CContinuousModel::CContinuousModel(size_t dim, bopt_params params):
-    ContinuousModel(dim,params)  {}; 
+    ContinuousModel(dim,params)  {};
 
-  double CContinuousModel::evaluateSample( const vectord &Xi ) 
+  double CContinuousModel::evaluateSample( const vectord &Xi )
   {
     int n = static_cast<int>(Xi.size());
     return  mF(n,&Xi[0],NULL,mOtherData);
@@ -132,13 +83,13 @@ class CDiscreteModel: public bayesopt::DiscreteModel
 
   CDiscreteModel(const vecOfvec &validX, bopt_params params):
     DiscreteModel(validX, params)
-  {}; 
+  {};
 
   CDiscreteModel(const vectori &categories, bopt_params params):
     DiscreteModel(categories, params)
-  {}; 
+  {};
 
-  double evaluateSample( const vectord &Xi ) 
+  double evaluateSample( const vectord &Xi )
   {
     int n = static_cast<int>(Xi.size());
     return  mF(n,&Xi[0],NULL,mOtherData);
@@ -150,7 +101,7 @@ class CDiscreteModel: public bayesopt::DiscreteModel
 
   void save_other_data(void* other_data)
   {  mOtherData = other_data; }
- 
+
 protected:
   void* mOtherData;
   eval_func mF;
@@ -162,10 +113,10 @@ int bayes_optimization(int nDim, eval_func f, void* f_data,
 {
   vectord result(nDim);
 
-  vectord lowerBound = bayesopt::utils::array2vector(lb,nDim); 
-  vectord upperBound = bayesopt::utils::array2vector(ub,nDim); 
+  vectord lowerBound = bayesopt::utils::array2vector(lb,nDim);
+  vectord upperBound = bayesopt::utils::array2vector(ub,nDim);
 
-  try 
+  try
     {
       CContinuousModel optimizer(nDim, parameters);
 
@@ -181,23 +132,23 @@ int bayes_optimization(int nDim, eval_func f, void* f_data,
     }
   catch (std::bad_alloc& e)
     {
-      FILE_LOG(logERROR) << e.what(); 
-      return  BAYESOPT_OUT_OF_MEMORY; 
+      FILE_LOG(logERROR) << e.what();
+      return  BAYESOPT_OUT_OF_MEMORY;
     }
   catch (std::invalid_argument& e)
-    { 
-      FILE_LOG(logERROR) << e.what(); 
-      return BAYESOPT_INVALID_ARGS; 
+    {
+      FILE_LOG(logERROR) << e.what();
+      return BAYESOPT_INVALID_ARGS;
     }
   catch (std::runtime_error& e)
-    { 
-      FILE_LOG(logERROR) << e.what(); 
+    {
+      FILE_LOG(logERROR) << e.what();
       return BAYESOPT_RUNTIME_ERROR;
     }
   catch (...)
-    { 
+    {
       FILE_LOG(logERROR) << "Unknown error";
-      return BAYESOPT_FAILURE; 
+      return BAYESOPT_FAILURE;
     }
   return 0; /* everything ok*/
 };
@@ -214,7 +165,7 @@ int bayes_optimization_disc(int nDim, eval_func f, void* f_data,
     {
       for(int j = 0; j<nDim; ++j)
 	{
-	 input(j) = valid_x[i*nDim+j]; 
+	 input(j) = valid_x[i*nDim+j];
 	}
       xSet.push_back(input);
     }
@@ -228,7 +179,7 @@ int bayes_optimization_disc(int nDim, eval_func f, void* f_data,
   try
     {
       CDiscreteModel optimizer(xSet,parameters);
-      
+
       optimizer.set_eval_funct(f);
       optimizer.save_other_data(f_data);
       optimizer.optimize(result);
@@ -239,23 +190,23 @@ int bayes_optimization_disc(int nDim, eval_func f, void* f_data,
     }
   catch (std::bad_alloc& e)
     {
-      FILE_LOG(logERROR) << e.what(); 
-      return  BAYESOPT_OUT_OF_MEMORY; 
+      FILE_LOG(logERROR) << e.what();
+      return  BAYESOPT_OUT_OF_MEMORY;
     }
   catch (std::invalid_argument& e)
-    { 
-      FILE_LOG(logERROR) << e.what(); 
-      return BAYESOPT_INVALID_ARGS; 
+    {
+      FILE_LOG(logERROR) << e.what();
+      return BAYESOPT_INVALID_ARGS;
     }
   catch (std::runtime_error& e)
-    { 
-      FILE_LOG(logERROR) << e.what(); 
+    {
+      FILE_LOG(logERROR) << e.what();
       return BAYESOPT_RUNTIME_ERROR;
     }
   catch (...)
-    { 
+    {
       FILE_LOG(logERROR) << "Unknown error";
-      return BAYESOPT_FAILURE; 
+      return BAYESOPT_FAILURE;
     }
 
   return 0; /* everything ok*/
@@ -263,7 +214,7 @@ int bayes_optimization_disc(int nDim, eval_func f, void* f_data,
 
 
 int bayes_optimization_categorical(int nDim, eval_func f, void* f_data,
-				   int *categories, double *x, 
+				   int *categories, double *x,
 				   double *minf, bopt_params parameters)
 {
   vectord result(nDim);
@@ -274,7 +225,7 @@ int bayes_optimization_categorical(int nDim, eval_func f, void* f_data,
   try
     {
       CDiscreteModel optimizer(cat,parameters);
-      
+
       optimizer.set_eval_funct(f);
       optimizer.save_other_data(f_data);
       optimizer.optimize(result);
@@ -285,23 +236,23 @@ int bayes_optimization_categorical(int nDim, eval_func f, void* f_data,
     }
   catch (std::bad_alloc& e)
     {
-      FILE_LOG(logERROR) << e.what(); 
-      return  BAYESOPT_OUT_OF_MEMORY; 
+      FILE_LOG(logERROR) << e.what();
+      return  BAYESOPT_OUT_OF_MEMORY;
     }
   catch (std::invalid_argument& e)
-    { 
-      FILE_LOG(logERROR) << e.what(); 
-      return BAYESOPT_INVALID_ARGS; 
+    {
+      FILE_LOG(logERROR) << e.what();
+      return BAYESOPT_INVALID_ARGS;
     }
   catch (std::runtime_error& e)
-    { 
-      FILE_LOG(logERROR) << e.what(); 
+    {
+      FILE_LOG(logERROR) << e.what();
       return BAYESOPT_RUNTIME_ERROR;
     }
   catch (...)
-    { 
+    {
       FILE_LOG(logERROR) << "Unknown error";
-      return BAYESOPT_FAILURE; 
+      return BAYESOPT_FAILURE;
     }
 
   return 0; /* everything ok*/

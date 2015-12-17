@@ -98,7 +98,7 @@ cdef extern from "bayesopt/parameters.h":
     void set_save_file(bopt_params* params, char* name)
     void set_learning(bopt_params* params, const char* name)
     void set_score(bopt_params* params, const char* name)
-    
+
     bopt_params initialize_parameters_to_default()
 
 ###########################################################################
@@ -121,20 +121,23 @@ cdef extern from "bayesopt/bayesopt.h":
                                         double *minf, bopt_params parameters)
 
 ###########################################################################
-cdef extern from "bayesopt/bayesoptwrap.hpp"
+cdef extern from "bayesopt/bayesoptwrap.hpp":
     cdef cppclass GaussianDistributionWrap:
-        GaussianDistributionWrap
+        GaussianDistributionWrap()
+        double getMean()
+        double getStd()
+        double pdf(double)
 
 cdef extern from "bayesopt/bayesoptwrap.hpp":
-    cdef cppclass ContinuousModelWrap:
-        ContinuousModelWrap(size_t, bopt_params) except +
+    cdef cppclass ContinuousModelGaussWrap:
+        ContinuousModelGaussWrap(size_t, bopt_params) except +
         void set_eval_funct(eval_func)
         void save_other_data(void*)
         void setBoundingBox(const double*, const double*)
         void optimize(double*)
         size_t getDimSize()
         void initWithPoints(const double*, const double*, size_t)
-        cdef GaussianDistributionWrap* getPrediction(const double*)
+        GaussianDistributionWrap* getPrediction(const double*)
 
 ###########################################################################
 cdef bopt_params dict2structparams(dict dparams):
@@ -159,7 +162,7 @@ cdef bopt_params dict2structparams(dict dparams):
     set_load_file(&params,l_name)
     s_name = dparams.get('save_filename',params.save_filename)
     set_save_file(&params,s_name)
-        
+
     name = dparams.get('surr_name',params.surr_name)
     set_surrogate(&params,name)
 
@@ -175,7 +178,7 @@ cdef bopt_params dict2structparams(dict dparams):
     score = dparams.get('sc_type', None)
     if score is not None:
         set_score(&params,score)
-    
+
     params.epsilon = dparams.get('epsilon',params.epsilon)
     params.force_jump= dparams.get('force_jump',params.force_jump)
 
@@ -192,7 +195,7 @@ cdef bopt_params dict2structparams(dict dparams):
 
     name = dparams.get('mean_name',params.mean.name)
     set_mean(&params,name)
-    
+
     mu = dparams.get('mean_coef_mean',None)
     smu = dparams.get('mean_coef_std',None)
     if mu is not None and smu is not None:
@@ -212,16 +215,16 @@ cdef bopt_params dict2structparams(dict dparams):
 
     return params
 
-cdef inline object fromvoidptr(void *a): 
-     cdef cpython.PyObject *o 
-     o = <cpython.PyObject *> a 
-     cpython.Py_XINCREF(o) 
+cdef inline object fromvoidptr(void *a):
+     cdef cpython.PyObject *o
+     o = <cpython.PyObject *> a
+     cpython.Py_XINCREF(o)
      print o.ob_refcnt
-     return <object> o 
+     return <object> o
 
-cdef inline void* tovoidptr(object o): 
+cdef inline void* tovoidptr(object o):
      cpython.Py_INCREF(o)
-     return <void*> o 
+     return <void*> o
 
 cdef double callback(unsigned int n, const_double_ptr x,
                      double *gradient, void *func_data):
@@ -230,7 +233,7 @@ cdef double callback(unsigned int n, const_double_ptr x,
 
         for i in range(0,n):
             x_np[i] = <double>x[i]
-        
+
         method = fromvoidptr(func_data)
         result = method(x_np)
         Py_DECREF(method)
@@ -244,11 +247,11 @@ def raise_problem(error_code):
     # C++ (excep) <-> C (error codes) <-> Python (excep)
 
     # From bayesoptwpr.cpp
-    #static const int BAYESOPT_FAILURE = -1; 
+    #static const int BAYESOPT_FAILURE = -1;
     #static const int BAYESOPT_INVALID_ARGS = -2;
     #static const int BAYESOPT_OUT_OF_MEMORY = -3;
     #static const int BAYESOPT_RUNTIME_ERROR = -4;
-    
+
     if error_code == -1: raise Exception('Unknown error');
     elif error_code == -2: raise ValueError('Invalid argument');
     elif error_code == -3: raise MemoryError;
@@ -274,7 +277,7 @@ def optimize(f, int nDim, np.ndarray[np.double_t] np_lb,
 
 
     raise_problem(error_code)
-    
+
     min_value = minf[0]
     return min_value,np_x,error_code
 
@@ -283,7 +286,7 @@ def optimize_discrete(f, np.ndarray[np.double_t,ndim=2] np_valid_x,
                       dict dparams):
 
     cdef bopt_params params = dict2structparams(dparams)
-    
+
     nDim = np_valid_x.shape[1]
 
     cdef double minf[1]
@@ -300,7 +303,7 @@ def optimize_discrete(f, np.ndarray[np.double_t,ndim=2] np_valid_x,
                                          &x[0], minf, params)
 
     raise_problem(error_code)
-    
+
     min_value = minf[0]
     return min_value,np_x,error_code
 
@@ -308,7 +311,7 @@ def optimize_categorical(f, np.ndarray[np.int_t,ndim=1] np_categories,
                          dict dparams):
 
     cdef bopt_params params = dict2structparams(dparams)
-    
+
     nDim = np_categories.shape[0]
 
     cdef double minf[1]
@@ -325,30 +328,65 @@ def optimize_categorical(f, np.ndarray[np.int_t,ndim=1] np_categories,
                                                 minf, params)
 
     raise_problem(error_code)
-    
+
     min_value = minf[0]
     return min_value,np_x,error_code
 
+cdef class GaussianDistribution:
+    cdef GaussianDistributionWrap *obj
 
-cdef class ContinuousModel:
-    cdef ContinuousModelWrap* obj
+    def __init__(self):
+        self.obj = NULL
+
+    def getMean(self):
+        try:
+            assert self.obj != NULL
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nDistribution is not defined"
+            e.args = (message, )
+            raise
+        return self.obj.getMean()
+
+    def getStd(self):
+        try:
+            assert self.obj != NULL
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nDistribution is not defined"
+            e.args = (message, )
+            raise
+        return self.obj.getStd()
+
+    def pdf(self, x):
+        try:
+            assert self.obj != NULL
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nDistribution is not defined"
+            e.args = (message, )
+            raise
+        return self.obj.pdf(x)
+
+cdef class ContinuousGaussModel:
+    cdef ContinuousModelGaussWrap* obj
 
     def __init__(self, int nDim, dict dparams):
         cdef bopt_params params = dict2structparams(dparams)
-        self.obj = new ContinuousModelWrap(nDim, params)
+        self.obj = new ContinuousModelGaussWrap(nDim, params)
         if self.obj == NULL:
             raise MemoryError("Can't allocate memory for class instance")
-    
+
         self.obj.set_eval_funct(callback)
         self.obj.save_other_data(tovoidptr(self.evaluateSample))
-    
+
     def evaluateSample(self, x_in):
         raise NotImplementedError("Please Implement this method")
 
     def setBoundingBox(self, np.ndarray[np.double_t] lb, np.ndarray[np.double_t] ub):
         self.obj.setBoundingBox(&lb[0], &ub[0])
 
-    def optimize(self):        
+    def optimize(self):
         cdef np.ndarray np_res = np.zeros([self.obj.getDimSize()], dtype=np.double)
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] x = np.ascontiguousarray(np_res,dtype=np.double)
         self.obj.optimize(&x[0])
@@ -373,8 +411,22 @@ cdef class ContinuousModel:
 
         cdef np.ndarray[double, ndim=2, mode="c"] xC = np.ascontiguousarray(x, dtype=ctypes.c_double)
         cdef np.ndarray[double, ndim=1, mode="c"] yC = np.ascontiguousarray(y, dtype=ctypes.c_double)
-        
+
         self.obj.initWithPoints(&xC[0, 0], &yC[0], nsamples)
+
+    def getPrediction(self, x):
+        try:
+            assert self.obj.getDimSize() == x.shape[0]
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nGot x with different dimension size than problem"
+            e.args = (message, )
+            raise
+
+        cdef np.ndarray[double, ndim=1, mode="c"] xC = np.ascontiguousarray(x, dtype=ctypes.c_double)
+        cdef GaussianDistribution distr = GaussianDistribution()
+        distr.obj = self.obj.getPrediction(&xC[0])
+        return distr
 
     def __del__(self):
         del self.obj

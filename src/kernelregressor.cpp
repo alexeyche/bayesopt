@@ -1,16 +1,16 @@
 /*
 -------------------------------------------------------------------------
-   This file is part of BayesOpt, an efficient C++ library for 
+   This file is part of BayesOpt, an efficient C++ library for
    Bayesian optimization.
 
    Copyright (C) 2011-2015 Ruben Martinez-Cantin <rmcantin@unizar.es>
- 
-   BayesOpt is free software: you can redistribute it and/or modify it 
+
+   BayesOpt is free software: you can redistribute it and/or modify it
    under the terms of the GNU Affero General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
-   BayesOpt is distributed in the hope that it will be useful, but 
+   BayesOpt is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Affero General Public License for more details.
@@ -37,7 +37,7 @@ namespace bayesopt
   KernelRegressor::KernelRegressor(size_t dim, Parameters parameters,
 				   const Dataset& data,
 				   MeanModel& mean, randEngine& eng):
-    NonParametricProcess(dim,parameters,data,mean,eng), 
+    NonParametricProcess(dim,parameters,data,mean,eng),
     mRegularizer(parameters.noise),
     mKernel(dim, parameters),
     mScoreType(parameters.sc_type),
@@ -55,7 +55,7 @@ namespace bayesopt
     vectord newK = computeCrossCorrelation(lastX);
     newK(newK.size()-1) += mRegularizer;   // We add it to the last element
     utils::cholesky_add_row(mL,newK);
-    precomputePrediction(); 
+    precomputePrediction();
   } // updateSurrogateModel
 
 
@@ -63,14 +63,14 @@ namespace bayesopt
   {
     size_t nSamples = mData.getNSamples();
     mL.resize(nSamples,nSamples);
-  
+
     //  const matrixd K = computeCorrMatrix();
     matrixd K(nSamples,nSamples);
     computeCorrMatrix(K);
     size_t line_error = utils::cholesky_decompose(K,mL);
-    if (line_error) 
+    if (line_error)
       {
-	throw std::runtime_error("Cholesky decomposition error at line " + 
+	throw std::runtime_error("Cholesky decomposition error at line " +
 				 boost::lexical_cast<std::string>(line_error));
       }
   }

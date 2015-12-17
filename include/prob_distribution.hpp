@@ -1,19 +1,19 @@
 
-/** \file prob_distribution.hpp 
+/** \file prob_distribution.hpp
     \brief Interface for probability models */
 /*
 -------------------------------------------------------------------------
-   This file is part of BayesOpt, an efficient C++ library for 
+   This file is part of BayesOpt, an efficient C++ library for
    Bayesian optimization.
 
    Copyright (C) 2011-2015 Ruben Martinez-Cantin <rmcantin@unizar.es>
- 
-   BayesOpt is free software: you can redistribute it and/or modify it 
+
+   BayesOpt is free software: you can redistribute it and/or modify it
    under the terms of the GNU Affero General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
-   BayesOpt is distributed in the hope that it will be useful, but 
+   BayesOpt is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Affero General Public License for more details.
@@ -38,7 +38,7 @@ namespace bayesopt
     ProbabilityDistribution(randEngine& eng): mtRandom(eng) {};
     virtual ~ProbabilityDistribution(){};
 
-    /** 
+    /**
      * \brief Probability density function
      * @param x query point
      * @return probability
@@ -46,7 +46,7 @@ namespace bayesopt
     virtual double pdf(double x) = 0;
 
 
-    /** 
+    /**
      * \brief Expected Improvement algorithm for minimization
      * @param min minimum value found so far
      * @param g exponent (used for annealing)
@@ -54,26 +54,26 @@ namespace bayesopt
      */
     virtual double negativeExpectedImprovement(double min, size_t g) = 0;
 
-    /** 
-     * \brief Lower confindence bound. Can be seen as the inverse of the Upper 
+    /**
+     * \brief Lower confindence bound. Can be seen as the inverse of the Upper
      * confidence bound
      * @param beta std coefficient (used for annealing)
      * @return value of the lower confidence bound
      */
     virtual double lowerConfidenceBound(double beta = 1) = 0;
 
-    /** 
+    /**
      * \brief Probability of improvement algorithm for minimization
      * @param min minimum value found so far
      * @param epsilon minimum improvement margin
-     * 
+     *
      * @return negative value of the probability of improvement
      */
     virtual double negativeProbabilityOfImprovement(double yMin,
 						    double epsilon) = 0;
 
-    /** 
-     * \brief Sample outcome acording to the marginal distribution at 
+    /**
+     * \brief Sample outcome acording to the marginal distribution at
      * the query point.
      *
      * @param eng boost.random engine
