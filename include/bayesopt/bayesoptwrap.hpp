@@ -14,14 +14,10 @@ using namespace bayesopt;
   {
    public:
     virtual ~ContinuousModelWrap() {
-      if(cache) {
-        delete cache;
-      }
     }
 
   ContinuousModelWrap(size_t dim, bopt_params params)
     : ContinuousModel(dim,params)
-    , cache(NULL)
   {
   }
 
@@ -87,48 +83,19 @@ using namespace bayesopt;
       query[xi] = x[xi];
     }
     ProbabilityDistribution* p = ContinuousModel::getPrediction(query);
-    if(cache) {
-      delete cache;
+    Distr *d = dynamic_cast<Distr*>(p);
+    if(!d) {
+      throw std::runtime_error("Failed to cast distribution");
     }
-    cache = new Distr(p);
-    return cache;
+    return new Distr(*d);
   }
 
   protected:
     void* mOtherData;
     eval_func mF;
-    Distr *cache;
   };
 
-
-
-  class GaussianDistributionWrap {
-  public:
-    GaussianDistributionWrap(ProbabilityDistribution *p) {
-      d = dynamic_cast<GaussianDistribution*>(p);
-      if(!d) {
-        throw std::runtime_error("Can't cast to gaussian distribtion");
-      }
-    }
-
-    double getMean() {
-      if(!d) throw std::runtime_error("Distribution is not defined");
-      return d->getMean();
-    }
-
-    double getStd() {
-      if(!d) throw std::runtime_error("Distribution is not defined");
-      return d->getStd();
-    }
-    double pdf(double v) {
-      if(!d) throw std::runtime_error("Distribution is not defined");
-      return d->pdf(v);
-    }
-
-  private:
-    GaussianDistribution *d;
-  };
-
+  typedef GaussianDistribution GaussianDistributionWrap;
   typedef ContinuousModelWrap<GaussianDistributionWrap> ContinuousModelGaussWrap;
 
 

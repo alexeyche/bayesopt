@@ -33,29 +33,46 @@ namespace bayesopt
      * can also be expressions of the same type.
      */
     void parseExpresion(std::string input, std::string& parent,
-		       std::string& child1, std::string& child2)
-    {
+		       std::string& child1, std::string& child2) {
       std::stringstream is(input);
       std::stringstream os(std::stringstream::out);
       std::stringstream os1(std::stringstream::out);
       std::stringstream os2(std::stringstream::out);
       char c;
       int i = 0, j = 0;
-      while (is >> c) 
-	{
-	  if (i < 0) throw std::runtime_error("Error parsing expression:" + input);
+      while (is >> c) {
+	      if (i < 0) throw std::runtime_error("Error parsing expression:" + input);
 	  
-	  if (c == ' ') /* pass */;
-	  else if (c == '(') i++;
-	  else if (c == ')') i--;
-	  else if ((i == 1) && (c == ',')) j++;
-	  else 
-	    {
-	      if (i == 0) os << c;
-	      else if (j == 0) os1 << c;
-	      else os2 << c;
-	    }
-	}
+	      if (c == ' ') /* pass */;
+	      else 
+        if (c == '(') {
+          i++;
+          if(i > 1) {
+            if(j==0) {
+              os1 << c; // inner parenthesis
+            } else {
+              os2 << c; // inner parenthesis  
+            }
+          }
+        } else 
+        if (c == ')') {
+          i--; 
+          if(i >= 1) {
+            if(j==0) {
+              os1 << c; // inner parenthesis
+            } else {
+              os2 << c; // inner parenthesis  
+            }
+          }
+        } else 
+        if ((i == 1) && (c == ',')) { 
+          j++;
+        } else {
+	        if (i == 0) os << c;
+	        else if (j == 0) os1 << c;
+	        else os2 << c;
+	      }
+      }
       if (i != 0) throw std::runtime_error("Error parsing expression:" + input);
 
       parent = os.str();

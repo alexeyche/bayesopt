@@ -342,31 +342,26 @@ cdef class GaussianDistribution:
         try:
             assert self.obj != NULL
         except AssertionError as e:
-            message = e.args[0]
-            message += "\nDistribution is not defined"
-            e.args = (message, )
-            raise
+            raise AssertionError("Distribution is not defined: {}".format(e))
         return self.obj.getMean()
 
     def getStd(self):
         try:
             assert self.obj != NULL
         except AssertionError as e:
-            message = e.args[0]
-            message += "\nDistribution is not defined"
-            e.args = (message, )
-            raise
+            raise AssertionError("Distribution is not defined: {}".format(e))
         return self.obj.getStd()
 
     def pdf(self, x):
         try:
             assert self.obj != NULL
         except AssertionError as e:
-            message = e.args[0]
-            message += "\nDistribution is not defined"
-            e.args = (message, )
-            raise
+            raise AssertionError("Distribution is not defined: {}".format(e))
         return self.obj.pdf(x)
+
+    def __del__(self):
+        del self.obj
+
 
 cdef class ContinuousGaussModel:
     cdef ContinuousModelGaussWrap* obj

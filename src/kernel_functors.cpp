@@ -88,6 +88,7 @@ namespace bayesopt
   {
     Kernel *kFunc;
     std::string os, os1, os2;
+    
     utils::parseExpresion(name,os,os1,os2);
 
     std::map<std::string,KernelFactory::create_func_definition>::iterator it = registry.find(os);
