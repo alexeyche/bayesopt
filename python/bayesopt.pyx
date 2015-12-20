@@ -26,6 +26,7 @@ cimport numpy as np
 from cpython cimport Py_INCREF, Py_DECREF
 cimport cpython
 import ctypes
+#from libcpp.vector cimport vector
 
 # Cython > 0.20
 #from libc.math cimport HUGE_VAL
@@ -138,7 +139,24 @@ cdef extern from "bayesopt/bayesoptwrap.hpp":
         size_t getDimSize()
         void initWithPoints(const double*, const double*, size_t)
         GaussianDistributionWrap* getPrediction(const double*)
+        
+cdef extern from "bayesopt/bayesoptwrap.hpp":
+    cdef cppclass StudentTDistributionWrap:
+        StudentTDistributionWrap()
+        double getMean()
+        double getStd()
+        double pdf(double)
 
+cdef extern from "bayesopt/bayesoptwrap.hpp":
+    cdef cppclass ContinuousModelStudentTWrap:
+        ContinuousModelStudentTWrap(size_t, bopt_params) except +
+        void set_eval_funct(eval_func)
+        void save_other_data(void*)
+        void setBoundingBox(const double*, const double*)
+        void optimize(double*)
+        size_t getDimSize()
+        void initWithPoints(const double*, const double*, size_t)
+        StudentTDistributionWrap* getPrediction(const double*)
 ###########################################################################
 cdef bopt_params dict2structparams(dict dparams):
 
@@ -332,8 +350,40 @@ def optimize_categorical(f, np.ndarray[np.int_t,ndim=1] np_categories,
     min_value = minf[0]
     return min_value,np_x,error_code
 
+
 cdef class GaussianDistribution:
     cdef GaussianDistributionWrap *obj
+
+    def __init__(self):
+        self.obj = NULL
+
+    def getMean(self):
+        try:
+            assert self.obj != NULL
+        except AssertionError as e:
+            raise AssertionError("Distribution is not defined: {}".format(e))
+        return self.obj.getMean()
+
+    def getStd(self):
+        try:
+            assert self.obj != NULL
+        except AssertionError as e:
+            raise AssertionError("Distribution is not defined: {}".format(e))
+        return self.obj.getStd()
+
+    def pdf(self, x):
+        try:
+            assert self.obj != NULL
+        except AssertionError as e:
+            raise AssertionError("Distribution is not defined: {}".format(e))
+        return self.obj.pdf(x)
+
+    def __del__(self):
+        del self.obj
+
+
+cdef class StudentTDistribution:
+    cdef StudentTDistributionWrap *obj
 
     def __init__(self):
         self.obj = NULL
@@ -422,8 +472,72 @@ cdef class ContinuousGaussModel:
         cdef GaussianDistribution distr = GaussianDistribution()
         distr.obj = self.obj.getPrediction(&xC[0])
         return distr
-
+    
     def __del__(self):
         del self.obj
+
+cdef class ContinuousStudentTModel:
+    cdef ContinuousModelStudentTWrap* obj
+
+    def __init__(self, int nDim, dict dparams):
+        cdef bopt_params params = dict2structparams(dparams)
+        self.obj = new ContinuousModelStudentTWrap(nDim, params)
+        if self.obj == NULL:
+            raise MemoryError("Can't allocate memory for class instance")
+
+        self.obj.set_eval_funct(callback)
+        self.obj.save_other_data(tovoidptr(self.evaluateSample))
+
+    def evaluateSample(self, x_in):
+        raise NotImplementedError("Please Implement this method")
+
+    def setBoundingBox(self, np.ndarray[np.double_t] lb, np.ndarray[np.double_t] ub):
+        self.obj.setBoundingBox(&lb[0], &ub[0])
+
+    def optimize(self):
+        cdef np.ndarray np_res = np.zeros([self.obj.getDimSize()], dtype=np.double)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] x = np.ascontiguousarray(np_res,dtype=np.double)
+        self.obj.optimize(&x[0])
+        return np_res
+
+    def initWithPoints(self, np.ndarray[np.double_t, ndim=2] x, np.ndarray[np.double_t, ndim=1] y):
+        nsamples = x.shape[0]
+        try:
+            assert nsamples == y.shape[0]
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nGot different lengths for x and y"
+            e.args = (message, )
+            raise
+        try:
+            assert self.obj.getDimSize() == x.shape[1]
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nGot x with different dimension size than problem"
+            e.args = (message, )
+            raise
+
+        cdef np.ndarray[double, ndim=2, mode="c"] xC = np.ascontiguousarray(x, dtype=ctypes.c_double)
+        cdef np.ndarray[double, ndim=1, mode="c"] yC = np.ascontiguousarray(y, dtype=ctypes.c_double)
+
+        self.obj.initWithPoints(&xC[0, 0], &yC[0], nsamples)
+
+    def getPrediction(self, x):
+        try:
+            assert self.obj.getDimSize() == x.shape[0]
+        except AssertionError as e:
+            message = e.args[0]
+            message += "\nGot x with different dimension size than problem"
+            e.args = (message, )
+            raise
+
+        cdef np.ndarray[double, ndim=1, mode="c"] xC = np.ascontiguousarray(x, dtype=ctypes.c_double)
+        cdef StudentTDistribution distr = StudentTDistribution()
+        distr.obj = self.obj.getPrediction(&xC[0])
+        return distr
+    
+    def __del__(self):
+        del self.obj
+
 
 

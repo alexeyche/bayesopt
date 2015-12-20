@@ -174,6 +174,11 @@ namespace bayesopt
 
     mModel->updateHyperParameters();
     mModel->fitSurrogateModel();
+
+    mCurrentIter = 0;
+
+    mCounterStuck = 0;
+    mYPrev = 0.0;
   }
 
   void BayesOptBase::initializeOptimization()
@@ -208,11 +213,6 @@ namespace bayesopt
 
     // Put samples into model
     initWithPoints(xPoints, yPoints);
-
-    mCurrentIter = 0;
-
-    mCounterStuck = 0;
-    mYPrev = 0.0;
   }
 
   vectord BayesOptBase::getFinalResult()

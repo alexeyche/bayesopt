@@ -6,6 +6,8 @@
 #include "bayesopt/bayesopt.hpp"
 
 #include "gauss_distribution.hpp"
+#include "student_t_distribution.hpp"
+#include "nonparametricprocess.hpp"
 
 using namespace bayesopt;
 
@@ -76,7 +78,6 @@ using namespace bayesopt;
     ContinuousModel::initWithPoints(xV, yV);
   }
 
-
   Distr* getPrediction(const double* x) {
     vectord query(mDims);
     for(size_t xi=0; xi<mDims; ++xi) {
@@ -97,8 +98,11 @@ using namespace bayesopt;
 
   typedef GaussianDistribution GaussianDistributionWrap;
   typedef ContinuousModelWrap<GaussianDistributionWrap> ContinuousModelGaussWrap;
-
-
+  
+  typedef StudentTDistribution StudentTDistributionWrap;
+  typedef ContinuousModelWrap<StudentTDistributionWrap> ContinuousModelStudentTWrap;
+  
+  
 
 
 #endif
